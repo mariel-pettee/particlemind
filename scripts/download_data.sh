@@ -1,8 +1,9 @@
 #!/bin/bash
-# set -e ### stop the script if it encounters errors
+set -e ### stop the script if it encounters errors
 
 ### go to the right directory relative to this script's location
-cd "$(dirname "$0")/../data/raw/"
+PROJECT_ROOT="/global/cfs/cdirs/m3246/mpettee/hep/particlemind"
+cd "$PROJECT_ROOT/data/raw/"
 
 if [ -f "p8_ee_tt_ecm365_rootfiles.tgz" ]; then
     echo ".tgz file already exists."

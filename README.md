@@ -18,15 +18,14 @@ particlemind/
 │   ├── processed/
 ├── src/                          ### Main source code 
 │   └── particlemind/
-│       ├── __init__.py
 │       ├── models/               ### Model architectures
-│       ├── data/                 ### Data loaders, datasets, transforms
-│       ├── training/             ### Training loops, trainers
-│       ├── evaluation/           ### Eval metrics, testing
+│       ├── data/                 ### Data processing & loading
+│       ├── training/             ### Training loops
+│       ├── evaluation/           ### Evaluation metrics & testing functions
 │       └── utils/                ### Helper functions
 ├── notebooks/                    ### Demos 
 ├── scripts/                      ### Scripts to e.g. train a model
-└── outputs/                      ### Model checkpoints, logs (add to .gitignore)
+└── outputs/                      ### Model checkpoints & logs
     ├── checkpoints/
     └── logs/
 ```

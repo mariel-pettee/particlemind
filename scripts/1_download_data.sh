@@ -18,6 +18,7 @@ echo "Extracting files..."
 tar xf p8_ee_tt_ecm365_rootfiles.tgz
 
 echo "Cleaning up..."
+mv p8_ee_tt_ecm365_rootfiles p8_ee_tt_ecm365
 rm -f p8_ee_tt_ecm365_rootfiles.tgz
 
 echo "Done!"

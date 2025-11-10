@@ -30,3 +30,12 @@ particlemind/
     ├── checkpoints/
     └── logs/
 ```
+
+
+## Dataset information
+We are using simulated data from a future "CLIC-like detector" (CLD) in an FCC-ee collider setting.
+- Dataset: [https://zenodo.org/records/14930758]
+- $e^+e^-\rightarrow t\bar{t}$ with $\sqrt{s}=365$ GeV
+- Physics processes are simulated with Pythia8
+- Detector is simulated with Geant4
+- Dataset has ~50,000 events (22 GB)

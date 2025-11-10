@@ -6,8 +6,10 @@ Self-supervised learning for clustering on HEP events.
 git clone git@github.com:mariel-pettee/particlemind.git
 cd particlemind 
 uv sync
-source scripts/download_data.sh
-uv run python scripts/train.py ### TO-DO: replace this
+source scripts/1_download_data.sh
+source scripts/2_process_data.sh
+# source scripts/3_train_vqvae.sh
+# source scripts/4_train_ssl.sh
 ```
 
 ## Repository structure

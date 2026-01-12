@@ -1,7 +1,7 @@
 import logging
 import time
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Callable, Optional
 
 import lightning as L
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 from vqtorch.nn import VectorQuant
 
-from utils.arrays import (
+from particlemind.utils.arrays import (
     ak_pad,
     ak_select_and_preprocess,
     ak_to_np_stack,
@@ -334,13 +334,15 @@ class VQVAELightning(L.LightningModule):
 
     def __init__(
         self,
-        optimizer: torch.optim.Optimizer,
-        scheduler: torch.optim.lr_scheduler = None,
-        model_kwargs={},
+        optimizer: Callable, #torch.optim.Optimizer,
+        scheduler: Optional[Callable] = None, #torch.optim.lr_scheduler = None,
+        model_kwargs: Optional[dict] = None, # {}
         model_type="Transformer",
         **kwargs,
     ) -> None:
         super().__init__()
+        if model_kwargs is None:
+            model_kwargs = {}
         self.save_hyperparameters(logger=False)
 
         # --------------- load pretrained model --------------- #
@@ -646,19 +648,32 @@ class VQVAELightning(L.LightningModule):
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Configures optimizers and learning-rate schedulers to be used for training."""
-        optimizer = self.hparams.optimizer(params=self.parameters())
-        if self.hparams.scheduler is not None:
-            scheduler = self.hparams.scheduler(optimizer=optimizer)
-            return {
-                "optimizer": optimizer,
-                "lr_scheduler": {
-                    "scheduler": scheduler,
-                    "monitor": "val_loss",
-                    "interval": "epoch",
-                    "frequency": 1,
-                },
-            }
+        try:
+            print("configuring optimizers...")
+        except Exception as e:
+            print(f"ERROR in configure_optimizers: {e}")
+            raise
+        ### Hydra version
+        if self.hparams.optimizer is not None:
+            print("hydra version")
+            optimizer = self.hparams.optimizer(params=self.parameters())
+            if self.hparams.scheduler is not None:
+                scheduler = self.hparams.scheduler(optimizer=optimizer)
+                return {
+                    "optimizer": optimizer,
+                    "lr_scheduler": {
+                        "scheduler": scheduler,
+                        "monitor": "val_loss",
+                        "interval": "epoch",
+                        "frequency": 1,
+                    },
+                }
+            return {"optimizer": optimizer}
 
+        ### manual version
+        print("manual version")
+        optimizer = torch.optim.AdamW(self.parameters(), **self.hparams.optimizer_kwargs)
+        print("optimizer:", optimizer)
         return {"optimizer": optimizer}
 
 

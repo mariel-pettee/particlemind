@@ -31,6 +31,8 @@ dependencies = [
     "tqdm>=4.67.1",
     "uproot>=5.6.8",
     "vector>=1.7.0",
+    "vqtorch @ git+https://github.com/minyoungg/vqtorch.git",
+    "wandb>=0.23.0",
 ]
 
 [tool.setuptools.packages.find]

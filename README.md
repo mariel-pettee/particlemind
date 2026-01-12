@@ -8,7 +8,7 @@ cd particlemind
 uv sync
 source scripts/1_download_data.sh
 source scripts/2_process_data.sh
-# source scripts/3_train_vqvae.sh
+source scripts/3_train_vqvae.sh
 # source scripts/4_train_ssl.sh
 ```
 

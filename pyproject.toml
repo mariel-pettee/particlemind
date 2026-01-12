@@ -17,6 +17,7 @@ dependencies = [
     "kaleido>=1.2.0",
     "lightning>=2.5.6",
     "matplotlib>=3.10.7",
+    "nbclient>=0.10.2",
     "nbformat>=5.10.4",
     "numpy>=2.3.4",
     "pandas>=2.3.3",

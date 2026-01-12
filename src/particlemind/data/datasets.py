@@ -157,6 +157,9 @@ class Collater:
                 ret[key] = torch.nn.utils.rnn.pad_sequence(
                     [torch.tensor(inp[key]).to(torch.float32) for inp in inputs], batch_first=True
                 )
+            # Create mask from calo_hit_features (1 where real data, 0 where padding)
+            if "calo_hit_features" in ret:
+                ret["calo_hit_mask"] = (ret["calo_hit_features"].abs().sum(dim=-1) > 0).float()
             return ret
 
         # per-particle quantities need to be padded across events of different size

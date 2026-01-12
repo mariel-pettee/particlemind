@@ -334,9 +334,9 @@ class VQVAELightning(L.LightningModule):
 
     def __init__(
         self,
-        optimizer: Callable, #torch.optim.Optimizer,
-        scheduler: Optional[Callable] = None, #torch.optim.lr_scheduler = None,
-        model_kwargs: Optional[dict] = None, # {}
+        optimizer: Optional[Callable] = None,
+        scheduler: Optional[Callable] = None,
+        model_kwargs: Optional[dict] = None,
         model_type="Transformer",
         **kwargs,
     ) -> None:
@@ -377,10 +377,9 @@ class VQVAELightning(L.LightningModule):
     def model_step(self, batch, return_x=False):
         """Perform a single model step on a batch of data."""
 
-        # x_particle, mask_particle, labels = batch
-        x_particle = batch["part_features"]
-        mask_particle = batch["part_mask"]
-        labels = batch["jet_type_labels"]
+        x_particle = batch["calo_hit_features"]
+        mask_particle = batch["calo_hit_mask"]
+        labels = batch["hit_labels"]
 
         x_particle_reco, vq_out = self.forward(x_particle, mask_particle)
 
@@ -405,9 +404,12 @@ class VQVAELightning(L.LightningModule):
         return loss
 
     def on_train_start(self) -> None:
-        self.preprocessing_dict = (
-            self.trainer.datamodule.hparams.dataset_kwargs_common.feature_dict
-        )
+        if hasattr(self.trainer, 'datamodule') and self.trainer.datamodule is not None:
+            self.preprocessing_dict = (
+                self.trainer.datamodule.hparams.dataset_kwargs_common.feature_dict
+            )
+        else:
+            self.preprocessing_dict = None
 
     def on_train_epoch_start(self):
         logger.info(f"Epoch {self.trainer.current_epoch} starting.")
@@ -467,8 +469,8 @@ class VQVAELightning(L.LightningModule):
             # log the plot
             plot_model(
                 self.model,
-                samples=batch["part_features"],
-                masks=batch["part_mask"],
+                samples=batch["calo_hit_features"],
+                masks=batch["calo_hit_mask"],
                 device=self.device,
                 saveas=plot_filename,
             )
@@ -633,31 +635,27 @@ class VQVAELightning(L.LightningModule):
 
     def on_validation_epoch_end(self) -> None:
         """Lightning hook that is called when a validation epoch ends."""
-        self.val_x_original_concat = np.concatenate(self.val_x_original)
-        self.val_x_reco_concat = np.concatenate(self.val_x_reco)
-        self.val_mask_concat = np.concatenate(self.val_mask)
-        self.val_labels_concat = np.concatenate(self.val_labels)
-        self.val_code_idx_concat = np.concatenate(self.val_code_idx)
+        # Store as lists since batches may have different sequence lengths
+        self.val_x_original_concat = self.val_x_original
+        self.val_x_reco_concat = self.val_x_reco
+        self.val_mask_concat = self.val_mask
+        self.val_labels_concat = self.val_labels
+        self.val_code_idx_concat = self.val_code_idx
 
     def on_test_epoch_end(self):
-        self.test_x_original_concat = np.concatenate(self.test_x_original)
-        self.test_x_reco_concat = np.concatenate(self.test_x_reco)
-        self.test_mask_concat = np.concatenate(self.test_mask)
-        self.test_labels_concat = np.concatenate(self.test_labels)
-        self.test_code_idx_concat = np.concatenate(self.test_code_idx)
+        # Store as lists since batches may have different sequence lengths
+        self.test_x_original_concat = self.test_x_original
+        self.test_x_reco_concat = self.test_x_reco
+        self.test_mask_concat = self.test_mask
+        self.test_labels_concat = self.test_labels
+        self.test_code_idx_concat = self.test_code_idx
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Configures optimizers and learning-rate schedulers to be used for training."""
-        try:
-            print("configuring optimizers...")
-        except Exception as e:
-            print(f"ERROR in configure_optimizers: {e}")
-            raise
-        ### Hydra version
-        if self.hparams.optimizer is not None:
-            print("hydra version")
+        # Hydra version (when optimizer callable is provided)
+        if self.hparams.get("optimizer") is not None:
             optimizer = self.hparams.optimizer(params=self.parameters())
-            if self.hparams.scheduler is not None:
+            if self.hparams.get("scheduler") is not None:
                 scheduler = self.hparams.scheduler(optimizer=optimizer)
                 return {
                     "optimizer": optimizer,
@@ -670,10 +668,25 @@ class VQVAELightning(L.LightningModule):
                 }
             return {"optimizer": optimizer}
 
-        ### manual version
-        print("manual version")
+        # Manual version (when optimizer_kwargs is provided)
         optimizer = torch.optim.AdamW(self.parameters(), **self.hparams.optimizer_kwargs)
-        print("optimizer:", optimizer)
+
+        # Add scheduler if lr_scheduler_kwargs provided
+        lr_kwargs = self.hparams.get("lr_scheduler_kwargs", {})
+        if lr_kwargs.get("use_scheduler", False):
+            total_steps = self.trainer.estimated_stepping_batches
+            warmup_steps = int(total_steps * lr_kwargs.get("warmup_frac", 0.01))
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                optimizer,
+                max_lr=self.hparams.optimizer_kwargs["lr"],
+                total_steps=total_steps,
+                pct_start=warmup_steps / total_steps if total_steps > 0 else 0.01,
+            )
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {"scheduler": scheduler, "interval": "step", "frequency": 1},
+            }
+
         return {"optimizer": optimizer}
 
 

@@ -23,7 +23,7 @@ def setup_parser():
     parser.add_argument("--precision", type=int, default=16, choices=[16, 32])
 
     parser.add_argument("--save_dir", type=str, default="/global/cfs/cdirs/m3246/mpettee/hep/particlemind/outputs/checkpoints/")
-    parser.add_argument("--name", type=str, default="test")
+    parser.add_argument("--name", type=str, default=None)
     parser.add_argument("--logger", type=str, default="wandb", choices=["tensorboard", "wandb"])
 
     # DATA ARGS
@@ -90,10 +90,16 @@ def main(args):
     elif args.logger == "tensorboard":
         logger = TensorBoardLogger(args.data_dir, name=args.name)
 
-    if args.train_embedder:
-        filename = f"embedder_{args.name}_val_loss_" + "{epoch:02d}"
+    if args.name:
+        run_name = args.name
+    elif args.logger == "wandb":
+        run_name = logger.experiment.name
     else:
-        filename = f"projector_{args.name}_val_loss_" + "{epoch:02d}"
+        run_name = "run"
+    if args.train_embedder:
+        filename = f"embedder_{run_name}_val_loss_" + "{epoch:02d}"
+    else:
+        filename = f"projector_{run_name}_val_loss_" + "{epoch:02d}"
     lr_monitor = LearningRateMonitor(logging_interval="step")
     checkpoint_loss = ModelCheckpoint(
         dirpath=f"{args.save_dir}/{project}/best_models/",

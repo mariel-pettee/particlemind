@@ -33,6 +33,7 @@ def setup_parser():
     parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--accumulate_grad_batches", type=int, default=128)
     parser.add_argument("--num_files", type=int, default=30)
+    parser.add_argument("--normalize", action="store_true", default=False, help="Apply z-score normalization to input features")
 
     # TRAINER ARGS
     parser.add_argument("--max_epochs", type=int, default=50)
@@ -132,8 +133,16 @@ def main(args):
 
     # DATA
     ### NOTE: is nsamples=args.num_files correct??
-    train_dataset = CLDHits(args.data_dir, "train", nsamples=args.num_files, shuffle_files=True)
-    val_dataset = CLDHits(args.data_dir, "val", nsamples=args.num_files, shuffle_files=False)
+    train_dataset = CLDHits(args.data_dir, "train", nsamples=args.num_files, shuffle_files=True, normalize=args.normalize)
+    # Use the same normalization stats from training data for validation
+    val_dataset = CLDHits(
+        args.data_dir,
+        "val",
+        nsamples=args.num_files,
+        shuffle_files=False,
+        normalize=args.normalize,
+        normalization_stats=train_dataset.normalization_stats if args.normalize else None,
+    )
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, collate_fn=Collater("all"), num_workers=2)
     val_loader = DataLoader(val_dataset, batch_size=args.batch_size, collate_fn=Collater("all"), num_workers=2)

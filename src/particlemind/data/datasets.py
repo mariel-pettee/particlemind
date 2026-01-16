@@ -37,13 +37,29 @@ def get_hit_labels(hit_idx, gen_idx, weights):
 
 
 class CLDHits(IterableDataset):
-    def __init__(self, folder_path, split, nsamples=None, shuffle_files=False, train_fraction=0.8):
+    def __init__(
+        self,
+        folder_path,
+        split,
+        nsamples=None,
+        shuffle_files=False,
+        train_fraction=0.8,
+        normalize=False,
+        normalization_stats=None,
+    ):
         """
         Initialize the dataset by storing the paths to all parquet files in the specified folder.
 
         Args:
             folder_path (str or Path): Path to the folder containing parquet files.
+            split (str): Either "train" or "val" for data splitting.
+            nsamples (int, optional): Maximum number of samples to return.
             shuffle_files (bool): Whether to shuffle the order of parquet files.
+            train_fraction (float): Fraction of files to use for training.
+            normalize (bool): Whether to apply z-score normalization to features.
+            normalization_stats (dict, optional): Pre-computed normalization statistics with keys
+                'mean' and 'std', each being arrays of shape (4,) for the 4 features.
+                If None and normalize=True, stats will be computed from the data.
         """
         self.folder_path = Path(folder_path)
         self.parquet_files = list(self.folder_path.glob("*.parquet"))
@@ -62,6 +78,58 @@ class CLDHits(IterableDataset):
 
         if self.shuffle_files:
             self.shuffle_shards()
+
+        self.normalize = normalize
+        self.normalization_stats = normalization_stats
+        if self.normalize and self.normalization_stats is None:
+            self.normalization_stats = self.compute_normalization_stats()
+
+    def compute_normalization_stats(self, max_samples=10000):
+        """
+        Compute mean and std for z-score normalization from a subset of the data.
+
+        Args:
+            max_samples (int): Maximum number of samples to use for computing stats.
+
+        Returns:
+            dict: Dictionary with 'mean' and 'std' arrays of shape (4,).
+        """
+        logger = logging.getLogger(__name__)
+        logger.info(f"Computing normalization statistics from up to {max_samples} samples...")
+
+        all_features = []
+        sample_count = 0
+
+        for file in self.parquet_files:
+            if sample_count >= max_samples:
+                break
+            data = ak.from_parquet(file)
+            for event_i in range(len(data["genparticle_to_calo_hit_matrix"])):
+                if sample_count >= max_samples:
+                    break
+                calo_hit_features = data["calo_hit_features"][event_i]
+                features = np.column_stack(
+                    (
+                        calo_hit_features["position.x"].to_numpy() / 1000,
+                        calo_hit_features["position.y"].to_numpy() / 1000,
+                        calo_hit_features["position.z"].to_numpy() / 1000,
+                        calo_hit_features["energy"].to_numpy() * 100,
+                    )
+                )
+                all_features.append(features)
+                sample_count += 1
+
+        all_features = np.vstack(all_features)
+        mean = np.mean(all_features, axis=0)
+        std = np.std(all_features, axis=0)
+        # Prevent division by zero
+        std = np.where(std < 1e-8, 1.0, std)
+
+        logger.info(f"Computed stats from {sample_count} samples:")
+        logger.info(f"  Mean: {mean}")
+        logger.info(f"  Std:  {std}")
+
+        return {"mean": mean, "std": std}
 
     def __len__(self):
         """
@@ -116,6 +184,12 @@ class CLDHits(IterableDataset):
                         calo_hit_features["energy"].to_numpy() * 100,
                     )
                 )
+
+                # Apply z-score normalization if enabled
+                if self.normalize and self.normalization_stats is not None:
+                    calo_hit_features = (calo_hit_features - self.normalization_stats["mean"]) / self.normalization_stats[
+                        "std"
+                    ]
 
                 hit_labels = get_hit_labels(
                     hit_idx, gen_idx, weights

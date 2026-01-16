@@ -4,7 +4,7 @@
 #SBATCH -q regular
 #SBATCH -n 1
 #SBATCH -c 32
-#SBATCH --ntasks=4                   # Number of tasks (4 commands)
+#SBATCH --ntasks=1                   
 #SBATCH --gpus-per-task=1
 #SBATCH --time 6:00:00
 #SBATCH --output log/%j.log
@@ -15,4 +15,4 @@ PROJECT_ROOT="/global/cfs/cdirs/m3246/mpettee/hep/particlemind"
 
 cd $PROJECT_ROOT
 
-uv run python $PROJECT_ROOT/src/particlemind/training/train_vqvae.py --train_embedder --max_epochs 200
+uv run python $PROJECT_ROOT/src/particlemind/training/train_vqvae.py --train_embedder --normalize --max_epochs 200
